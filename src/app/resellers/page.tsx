@@ -44,35 +44,37 @@ export default function ResellersListPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Nome</TableHead>
-                                <TableHead>Telefone</TableHead>
-                                <TableHead>Comissão</TableHead>
-                                <TableHead>Limite</TableHead>
-                                <TableHead className="text-right">Status</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
-                            ) : resellers.map((reseller) => (
-                                <TableRow key={reseller.id}>
-                                    <TableCell className="font-medium">{reseller.name}</TableCell>
-                                    <TableCell>{reseller.phone}</TableCell>
-                                    <TableCell>{reseller.default_commission_percent}%</TableCell>
-                                    <TableCell>R$ {reseller.credit_limit}</TableCell>
-                                    <TableCell className="text-right">
-                                        <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Ativa</span>
-                                    </TableCell>
+                    <div className="overflow-x-auto">
+                        <Table className="min-w-[600px]">
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Nome</TableHead>
+                                    <TableHead>Telefone</TableHead>
+                                    <TableHead>Comissão</TableHead>
+                                    <TableHead>Limite</TableHead>
+                                    <TableHead className="text-right">Status</TableHead>
                                 </TableRow>
-                            ))}
-                            {!loading && resellers.length === 0 && (
-                                <TableRow><TableCell colSpan={5} className="text-center h-24">Nenhuma revendedora encontrada.</TableCell></TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow><TableCell colSpan={5}>Carregando...</TableCell></TableRow>
+                                ) : resellers.map((reseller) => (
+                                    <TableRow key={reseller.id}>
+                                        <TableCell className="font-medium">{reseller.name}</TableCell>
+                                        <TableCell>{reseller.phone}</TableCell>
+                                        <TableCell>{reseller.default_commission_percent}%</TableCell>
+                                        <TableCell>R$ {reseller.credit_limit}</TableCell>
+                                        <TableCell className="text-right">
+                                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Ativa</span>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                                {!loading && resellers.length === 0 && (
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24">Nenhuma revendedora encontrada.</TableCell></TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

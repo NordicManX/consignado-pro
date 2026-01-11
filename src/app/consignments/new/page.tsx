@@ -147,7 +147,7 @@ export default function NewConsignmentPage() {
     }
 
     return (
-        <div className="container mx-auto py-6 max-w-4xl h-screen flex flex-col">
+        <div className="container mx-auto py-6 max-w-4xl min-h-screen flex flex-col">
             {/* Topo */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
@@ -166,7 +166,7 @@ export default function NewConsignmentPage() {
                 </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-6 flex-1 overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 overflow-hidden">
 
                 {/* Esquerda: Controles */}
                 <Card className="col-span-1 h-fit">

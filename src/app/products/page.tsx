@@ -190,37 +190,39 @@ export default function ProductsListPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead className="w-[40%]">Produto</TableHead>
-                                <TableHead>Preço Base</TableHead>
-                                <TableHead className="text-center">Estoque Total</TableHead>
-                                <TableHead className="text-center">Ações</TableHead>
-                                <TableHead className="text-right"></TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
+                    <div className="overflow-x-auto">
+                        <Table className="min-w-[600px]">
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-24">Carregando estoque...</TableCell>
+                                    <TableHead className="w-[40%]">Produto</TableHead>
+                                    <TableHead>Preço Base</TableHead>
+                                    <TableHead className="text-center">Estoque Total</TableHead>
+                                    <TableHead className="text-center">Ações</TableHead>
+                                    <TableHead className="text-right"></TableHead>
                                 </TableRow>
-                            ) : filteredProducts.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
-                                        <div className="flex flex-col items-center justify-center">
-                                            <Package className="w-8 h-8 mb-2 opacity-50" />
-                                            Nenhum produto encontrado.
-                                        </div>
-                                    </TableCell>
-                                </TableRow>
-                            ) : (
-                                filteredProducts.map((product) => (
-                                    <ProductRow key={product.id} product={product} onDelete={handleDelete} />
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center h-24">Carregando estoque...</TableCell>
+                                    </TableRow>
+                                ) : filteredProducts.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="text-center h-32 text-muted-foreground">
+                                            <div className="flex flex-col items-center justify-center">
+                                                <Package className="w-8 h-8 mb-2 opacity-50" />
+                                                Nenhum produto encontrado.
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
+                                ) : (
+                                    filteredProducts.map((product) => (
+                                        <ProductRow key={product.id} product={product} onDelete={handleDelete} />
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>

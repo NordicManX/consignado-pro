@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, ShoppingBag, Calendar, User } from 'lucide-react'
+import { Plus, Search, Calendar, User, Printer } from 'lucide-react' // Adicionado Printer
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-import { supabase } from '@/src/lib/supabase'
+import { supabase } from '@/src/lib/supabase' // Caminho corrigido
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -23,9 +23,9 @@ export default function ConsignmentsListPage() {
             const { data } = await supabase
                 .from('consignments')
                 .select(`
-          *,
-          resellers (name)
-        `)
+                  *,
+                  resellers (name)
+                `)
                 .order('created_at', { ascending: false })
 
             setConsignments(data || [])
@@ -56,65 +56,80 @@ export default function ConsignmentsListPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Data Saída</TableHead>
-                                <TableHead>Revendedora</TableHead>
-                                <TableHead className="text-center">Itens</TableHead>
-                                <TableHead>Valor Total</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Ações</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
-                                <TableRow><TableCell colSpan={6} className="text-center h-24">Carregando...</TableCell></TableRow>
-                            ) : consignments.length === 0 ? (
+                    <div className="overflow-x-auto">
+                        <Table className="min-w-[600px]">
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">
-                                        Nenhuma sacola registrada ainda.
-                                    </TableCell>
+                                    <TableHead>Data Saída</TableHead>
+                                    <TableHead>Revendedora</TableHead>
+                                    <TableHead className="text-center">Itens</TableHead>
+                                    <TableHead>Valor Total</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
-                            ) : (
-                                consignments.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell className="text-muted-foreground">
-                                            <div className="flex items-center gap-2">
-                                                <Calendar className="w-3 h-3" />
-                                                {format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR })}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="font-medium">
-                                            <div className="flex items-center gap-2">
-                                                <User className="w-3 h-3 text-muted-foreground" />
-                                                {item.resellers?.name || 'Desconhecida'}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Badge variant="outline">{item.total_items} peças</Badge>
-                                        </TableCell>
-                                        <TableCell>R$ {item.total_value.toFixed(2)}</TableCell>
-                                        <TableCell>
-                                            {item.status === 'open' ? (
-                                                <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-0">Em Aberto</Badge>
-                                            ) : (
-                                                <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-0">Fechada</Badge>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-right">
-                                            {/* Adicionamos o Link apontando para o ID da sacola */}
-                                            <Link href={`/consignments/${item.id}`}>
-                                                <Button variant="outline" size="sm">
-                                                    Conferir / Acertar
-                                                </Button>
-                                            </Link>
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow><TableCell colSpan={6} className="text-center h-24">Carregando...</TableCell></TableRow>
+                                ) : consignments.length === 0 ? (
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">
+                                            Nenhuma sacola registrada ainda.
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : (
+                                    consignments.map((item) => (
+                                        <TableRow key={item.id}>
+                                            <TableCell className="text-muted-foreground">
+                                                <div className="flex items-center gap-2">
+                                                    <Calendar className="w-3 h-3" />
+                                                    {format(new Date(item.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    <User className="w-3 h-3 text-muted-foreground" />
+                                                    {item.resellers?.name || 'Desconhecida'}
+                                                </div>
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Badge variant="outline">{item.total_items} peças</Badge>
+                                            </TableCell>
+                                            <TableCell>R$ {item.total_value.toFixed(2)}</TableCell>
+                                            <TableCell>
+                                                {item.status === 'open' ? (
+                                                    <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-0">Em Aberto</Badge>
+                                                ) : (
+                                                    <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-0">Fechada</Badge>
+                                                )}
+                                            </TableCell>
+
+                                            {/* Célula de Ações Atualizada com Impressora */}
+                                            <TableCell className="text-right">
+                                                <div className="flex justify-end gap-2">
+
+                                                    {/* Botão de Imprimir Romaneio */}
+                                                    <Link href={`/consignments/${item.id}/print`} target="_blank">
+                                                        <Button variant="ghost" size="icon" title="Imprimir Romaneio">
+                                                            <Printer className="w-4 h-4 text-neutral-600" />
+                                                        </Button>
+                                                    </Link>
+
+                                                    {/* Botão de Conferir */}
+                                                    <Link href={`/consignments/${item.id}`}>
+                                                        <Button variant="outline" size="sm">
+                                                            Conferir / Acertar
+                                                        </Button>
+                                                    </Link>
+                                                </div>
+                                            </TableCell>
+
+                                        </TableRow>
+                                    ))
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>
