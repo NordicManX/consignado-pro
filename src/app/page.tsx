@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
     TrendingUp,
-    Package,
     ShoppingBag,
     ArrowRight,
     DollarSign,
@@ -13,9 +12,10 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { toast } from "sonner"
 
-import { supabase } from '@/src/lib/supabase'
+import { supabase } from '@/src/lib/supabase' // Verifique se o caminho é @/lib ou @/src/lib
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import { Button } from '@//components/ui/button'
+import { WelcomeBanner } from '@/src/components/welcome-banner' // <--- 1. IMPORTAÇÃO NOVA
 
 export default function DashboardPage() {
     const [loading, setLoading] = useState(true)
@@ -95,19 +95,16 @@ export default function DashboardPage() {
     return (
         <div className="container mx-auto py-8 max-w-6xl space-y-8">
 
-            {/* Cabeçalho de Boas Vindas */}
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
-                    <p className="text-muted-foreground">Bem-vindo ao painel de controle do Consignado Pro.</p>
-                </div>
-                <div className="flex gap-2">
-                    <Link href="/consignments/new">
-                        <Button className="bg-green-600 hover:bg-green-700">
-                            <ShoppingBag className="w-4 h-4 mr-2" /> Nova Sacola
-                        </Button>
-                    </Link>
-                </div>
+            {/* --- 2. AQUI ENTRA O NOVO COMPONENTE DE BOAS-VINDAS --- */}
+            <WelcomeBanner />
+
+            {/* Botão de Nova Sacola (Mantido alinhado à direita) */}
+            <div className="flex justify-end">
+                <Link href="/consignments/new">
+                    <Button className="bg-green-600 hover:bg-green-700 shadow-md">
+                        <ShoppingBag className="w-4 h-4 mr-2" /> Nova Sacola
+                    </Button>
+                </Link>
             </div>
 
             {/* Cards de KPIs (Indicadores) */}

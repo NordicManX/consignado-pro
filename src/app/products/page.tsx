@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Trash2, Package, ChevronDown, ChevronUp, Barcode } from 'lucide-react'
+// 1. Adicionei o Pencil aqui nos imports
+import { Plus, Search, Trash2, Package, ChevronDown, ChevronUp, Barcode, Pencil } from 'lucide-react'
 import { toast } from "sonner"
 
 import { supabase } from '@/src/lib/supabase'
@@ -26,11 +27,10 @@ type ProductWithVariants = {
     title: string
     category: string
     base_price: number
-    // Agora trazemos a lista completa, não só a contagem
     product_variants: Variant[]
 }
 
-// --- Componente de Linha (Para gerenciar o abre/fecha individualmente) ---
+// --- Componente de Linha ---
 function ProductRow({ product, onDelete }: { product: ProductWithVariants, onDelete: (id: string) => void }) {
     const [isExpanded, setIsExpanded] = useState(false)
     const totalStock = product.product_variants.reduce((acc, curr) => acc + curr.stock_quantity, 0)
@@ -65,15 +65,29 @@ function ProductRow({ product, onDelete }: { product: ProductWithVariants, onDel
                         {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                     </Button>
                 </TableCell>
+
+                {/* --- AQUI ESTÁ A MUDANÇA: Coluna de Ações --- */}
                 <TableCell className="text-right">
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                        onClick={() => onDelete(product.id)}
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </Button>
+                    <div className="flex items-center justify-end gap-1">
+
+                        {/* Botão de Editar */}
+                        <Link href={`/products/${product.id}`}>
+                            <Button variant="ghost" size="icon" className="hover:bg-blue-50 hover:text-blue-600" title="Editar">
+                                <Pencil className="w-4 h-4" />
+                            </Button>
+                        </Link>
+
+                        {/* Botão de Excluir */}
+                        <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                            onClick={() => onDelete(product.id)}
+                            title="Excluir"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    </div>
                 </TableCell>
             </TableRow>
 
@@ -197,8 +211,8 @@ export default function ProductsListPage() {
                                     <TableHead className="w-[40%]">Produto</TableHead>
                                     <TableHead>Preço Base</TableHead>
                                     <TableHead className="text-center">Estoque Total</TableHead>
-                                    <TableHead className="text-center">Ações</TableHead>
-                                    <TableHead className="text-right"></TableHead>
+                                    <TableHead className="text-center">Variações</TableHead>
+                                    <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
