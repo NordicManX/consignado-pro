@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plus, Search, Calendar, User, Printer } from 'lucide-react' // Adicionado Printer
+import { Plus, Search, Calendar, User, Printer, CheckSquare, Loader2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 
-import { supabase } from '@/src/lib/supabase' // Caminho corrigido
+import { supabase } from '@/src/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -19,8 +19,8 @@ export default function ConsignmentsListPage() {
 
     useEffect(() => {
         async function fetch() {
-            // Busca sacolas E o nome da revendedora (join)
-            const { data } = await supabase
+            // Busca sacolas E o nome da revendedora
+            const { data, error } = await supabase
                 .from('consignments')
                 .select(`
                   *,
@@ -28,11 +28,22 @@ export default function ConsignmentsListPage() {
                 `)
                 .order('created_at', { ascending: false })
 
-            setConsignments(data || [])
+            if (error) {
+                console.error("Erro ao buscar sacolas:", error)
+            } else {
+                // Debug: descomente para ver o status real no console do navegador
+                // console.log("Sacolas carregadas:", data)
+                setConsignments(data || [])
+            }
             setLoading(false)
         }
         fetch()
     }, [])
+
+    // Função auxiliar para verificar se está fechada
+    const isClosed = (status: string | null) => {
+        return status === 'closed'
+    }
 
     return (
         <div className="container mx-auto py-10 max-w-5xl">
@@ -70,7 +81,13 @@ export default function ConsignmentsListPage() {
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow><TableCell colSpan={6} className="text-center h-24">Carregando...</TableCell></TableRow>
+                                    <TableRow>
+                                        <TableCell colSpan={6} className="text-center h-24">
+                                            <div className="flex items-center justify-center gap-2">
+                                                <Loader2 className="animate-spin w-4 h-4" /> Carregando...
+                                            </div>
+                                        </TableCell>
+                                    </TableRow>
                                 ) : consignments.length === 0 ? (
                                     <TableRow>
                                         <TableCell colSpan={6} className="text-center h-32 text-muted-foreground">
@@ -95,32 +112,44 @@ export default function ConsignmentsListPage() {
                                             <TableCell className="text-center">
                                                 <Badge variant="outline">{item.total_items} peças</Badge>
                                             </TableCell>
-                                            <TableCell>R$ {item.total_value.toFixed(2)}</TableCell>
+                                            <TableCell>R$ {item.total_value?.toFixed(2)}</TableCell>
+
+                                            {/* STATUS VISUAL */}
                                             <TableCell>
-                                                {item.status === 'open' ? (
+                                                {!isClosed(item.status) ? (
                                                     <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-0">Em Aberto</Badge>
                                                 ) : (
                                                     <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-0">Fechada</Badge>
                                                 )}
                                             </TableCell>
 
-                                            {/* Célula de Ações Atualizada com Impressora */}
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-
-                                                    {/* Botão de Imprimir Romaneio */}
+                                                    {/* Botão de Imprimir */}
                                                     <Link href={`/consignments/${item.id}/print`} target="_blank">
                                                         <Button variant="ghost" size="icon" title="Imprimir Romaneio">
                                                             <Printer className="w-4 h-4 text-neutral-600" />
                                                         </Button>
                                                     </Link>
 
-                                                    {/* Botão de Conferir */}
-                                                    <Link href={`/consignments/${item.id}`}>
-                                                        <Button variant="outline" size="sm">
-                                                            Conferir / Acertar
+                                                    {/* BOTÃO DE ACERTO (Lógica Corrigida) */}
+                                                    {/* Se NÃO estiver fechada, permite o acerto */}
+                                                    {!isClosed(item.status) ? (
+                                                        <Link href={`/consignments/${item.id}/close`}>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100"
+                                                            >
+                                                                <CheckSquare className="w-4 h-4 mr-2" />
+                                                                Realizar Acerto
+                                                            </Button>
+                                                        </Link>
+                                                    ) : (
+                                                        <Button variant="ghost" size="sm" disabled className="text-muted-foreground">
+                                                            Finalizada
                                                         </Button>
-                                                    </Link>
+                                                    )}
                                                 </div>
                                             </TableCell>
 
