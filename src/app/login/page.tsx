@@ -28,7 +28,7 @@ export default function LoginPage() {
             if (error) throw error
 
             toast.success('Login realizado!', { description: 'Acesso liberado.' })
-            router.push('/') // Redireciona para o cadastro
+            router.push('/dashboard') // Redireciona para o cadastro
         } catch (error: any) {
             toast.error('Erro ao entrar', {
                 description: 'Verifique seu e-mail e senha.'

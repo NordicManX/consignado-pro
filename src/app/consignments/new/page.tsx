@@ -27,6 +27,16 @@ import {
 } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export default function NewConsignmentPage() {
     const router = useRouter()
@@ -47,16 +57,18 @@ export default function NewConsignmentPage() {
     // NOVO: Estado para controlar a visualização
     const [isGrouped, setIsGrouped] = useState(true)
 
+    // --- ESTADOS PARA O MODAL DE EXCLUSÃO ---
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+    const [variantIdToDelete, setVariantIdToDelete] = useState<string | null>(null)
+
     // 1. Carregar Dados Iniciais
     useEffect(() => {
         async function loadInitialData() {
             const { data: { user } } = await supabase.auth.getUser()
             if (!user) return
-            const userIsAdmin = user.user_metadata?.role === 'admin'
 
             // A. Revendedoras
             let query = supabase.from('resellers').select('*').order('name')
-            // if (!userIsAdmin) { query = query.eq('email', user.email) } // Descomente se precisar do filtro
             const { data: resellersData } = await query
 
             if (resellersData) {
@@ -80,12 +92,10 @@ export default function NewConsignmentPage() {
     }, [bagItems])
 
     // --- LÓGICA DE AGRUPAMENTO (Memoizada) ---
-    // Isso transforma a lista plana em lista agrupada sem alterar os dados originais
     const groupedItems = useMemo(() => {
         const groups: Record<string, any> = {}
 
         bagItems.forEach((item) => {
-            // Usa o ID da variação como chave única
             if (!groups[item.variant_id]) {
                 groups[item.variant_id] = {
                     ...item,
@@ -150,12 +160,25 @@ export default function NewConsignmentPage() {
         setBagItems(newItems)
     }
 
-    // Remover Grupo Inteiro (Modo Agrupado)
-    const handleRemoveGroup = (variantId: string) => {
-        if (!confirm("Remover todos os itens deste produto da sacola?")) return
-        const newItems = bagItems.filter(item => item.variant_id !== variantId)
-        setBagItems(newItems)
+    // --- FUNÇÕES DE REMOÇÃO DE GRUPO COM MODAL ---
+
+    // 1. Solicita a remoção (abre o modal)
+    const requestRemoveGroup = (variantId: string) => {
+        setVariantIdToDelete(variantId)
+        setDeleteDialogOpen(true)
     }
+
+    // 2. Confirma a remoção (executa a lógica)
+    const confirmRemoveGroup = () => {
+        if (variantIdToDelete) {
+            const newItems = bagItems.filter(item => item.variant_id !== variantIdToDelete)
+            setBagItems(newItems)
+            toast.success('Itens removidos.')
+        }
+        setDeleteDialogOpen(false)
+        setVariantIdToDelete(null)
+    }
+
 
     // 3. Finalizar
     const handleFinish = async () => {
@@ -183,9 +206,6 @@ export default function NewConsignmentPage() {
 
             if (consError) throw consError
 
-            // Insere Itens (Aqui usamos o bagItems original, pois o banco espera 1 por linha)
-            // Se quiser salvar agrupado no banco, a lógica mudaria aqui, mas geralmente consignment_items é linha a linha ou tem coluna quantity
-            // Vamos manter linha a linha por enquanto para compatibilidade com seu banco atual
             for (const item of bagItems) {
                 await supabase.from('consignment_items').insert({
                     consignment_id: consignment.id,
@@ -194,7 +214,6 @@ export default function NewConsignmentPage() {
                     unit_price: item.price
                 })
 
-                // Baixa estoque
                 const { data: currentVariant } = await supabase
                     .from('product_variants')
                     .select('stock_quantity')
@@ -329,7 +348,7 @@ export default function NewConsignmentPage() {
 
                         {/* --- BOTÃO DE AGRUPAR --- */}
                         <div className="flex items-center space-x-2">
-                            <Label htmlFor="group-mode" className="text-xs font-normal text-muted-foreground flex items-center gap-1">
+                            <Label htmlFor="group-mode" className="text-xs font-normal text-muted-foreground flex items-center gap-1 cursor-pointer">
                                 {isGrouped ? <Layers className="w-3 h-3" /> : <List className="w-3 h-3" />}
                                 {isGrouped ? 'Agrupado' : 'Lista Simples'}
                             </Label>
@@ -376,7 +395,8 @@ export default function NewConsignmentPage() {
                                                         R$ {item.totalPrice.toFixed(2)}
                                                     </TableCell>
                                                     <TableCell>
-                                                        <Button variant="ghost" size="icon" onClick={() => handleRemoveGroup(item.variant_id)}>
+                                                        {/* --- BOTÃO QUE CHAMA O MODAL --- */}
+                                                        <Button variant="ghost" size="icon" onClick={() => requestRemoveGroup(item.variant_id)}>
                                                             <Trash2 className="w-4 h-4 text-red-500" />
                                                         </Button>
                                                     </TableCell>
@@ -407,6 +427,25 @@ export default function NewConsignmentPage() {
                     </div>
                 </Card>
             </div>
+
+            {/* --- ALERT DIALOG PARA EXCLUSÃO --- */}
+            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Remover itens?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Isso removerá <strong>todas</strong> as unidades deste produto que estão na sacola atual.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={confirmRemoveGroup} className="bg-red-600 hover:bg-red-700">
+                            Sim, remover tudo
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
         </div>
     )
 }

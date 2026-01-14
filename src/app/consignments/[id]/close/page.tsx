@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, XCircle, Calculator, Save, AlertCircle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, XCircle, Calculator, Save, AlertCircle, Layers, List } from 'lucide-react'
 import { toast } from "sonner"
 import { supabase } from '@/src/lib/supabase'
 
@@ -10,8 +10,21 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
+import { Switch } from "@/components/ui/switch"
+import { Label } from "@/components/ui/label"
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
-// Tipos para facilitar
+// Tipos
 type BagItem = {
     id: string
     variant_id: string
@@ -33,6 +46,9 @@ export default function CloseConsignmentPage() {
     const [items, setItems] = useState<BagItem[]>([])
     const [resellerName, setResellerName] = useState('')
     const [commissionRate, setCommissionRate] = useState(30)
+
+    // Estado para Agrupamento
+    const [isGrouped, setIsGrouped] = useState(true)
 
     // 1. Carregar Dados
     useEffect(() => {
@@ -79,7 +95,7 @@ export default function CloseConsignmentPage() {
                 color: item.product_variants?.color,
                 barcode: item.product_variants?.barcode,
                 unit_price: item.unit_price,
-                status: 'sold'
+                status: 'sold' // Padrão: Vendido
             }))
 
             setItems(formattedItems)
@@ -88,11 +104,53 @@ export default function CloseConsignmentPage() {
         loadData()
     }, [consignmentId, router])
 
-    // 2. Alternar Status
-    const toggleStatus = (index: number) => {
-        const newItems = [...items]
-        newItems[index].status = newItems[index].status === 'sold' ? 'returned' : 'sold'
-        setItems(newItems)
+    // --- LÓGICA DE AGRUPAMENTO ---
+    const groupedItems = useMemo(() => {
+        const groups: Record<string, any> = {}
+
+        items.forEach((item) => {
+            if (!groups[item.variant_id]) {
+                groups[item.variant_id] = {
+                    ...item,
+                    totalQuantity: 0,
+                    soldCount: 0,
+                    returnedCount: 0,
+                    totalPrice: 0
+                }
+            }
+            groups[item.variant_id].totalQuantity += 1
+            groups[item.variant_id].totalPrice += item.unit_price
+
+            if (item.status === 'sold') groups[item.variant_id].soldCount += 1
+            else groups[item.variant_id].returnedCount += 1
+        })
+
+        return Object.values(groups)
+    }, [items])
+
+
+    // 2. Alternar Status (Individual)
+    const toggleStatusIndividual = (id: string) => {
+        setItems(prev => prev.map(item => {
+            if (item.id === id) {
+                return { ...item, status: item.status === 'sold' ? 'returned' : 'sold' }
+            }
+            return item
+        }))
+    }
+
+    // 2b. Alternar Status (Grupo Inteiro)
+    const toggleStatusGroup = (variantId: string, currentStatus: 'sold' | 'returned' | 'mixed') => {
+        // Lógica: Se estiver tudo vendido ou misto -> muda tudo para devolvido. 
+        // Se estiver tudo devolvido -> muda tudo para vendido.
+        const newStatus = (currentStatus === 'sold' || currentStatus === 'mixed') ? 'returned' : 'sold'
+
+        setItems(prev => prev.map(item => {
+            if (item.variant_id === variantId) {
+                return { ...item, status: newStatus }
+            }
+            return item
+        }))
     }
 
     // 3. Cálculos
@@ -108,9 +166,6 @@ export default function CloseConsignmentPage() {
 
     // 4. Finalizar
     const handleFinish = async () => {
-        // OBS: O alerta que aparece aqui é do navegador, ele sempre será padrão do sistema.
-        if (!confirm('Confirmar o fechamento? Os itens devolvidos voltarão ao estoque.')) return
-
         setSaving(true)
         try {
             // A. Atualizar Estoque
@@ -170,50 +225,109 @@ export default function CloseConsignmentPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
                 {/* LADO ESQUERDO: LISTA */}
-                <Card className="lg:col-span-2">
-                    <CardHeader>
-                        <CardTitle className="text-base flex justify-between">
-                            <span>Itens da Sacola ({totalItems})</span>
-                            <span className="text-sm font-normal text-muted-foreground">Clique no botão para marcar devolução</span>
+                <Card className="lg:col-span-2 flex flex-col min-h-[500px]">
+                    <CardHeader className="flex flex-row items-center justify-between pb-4 border-b bg-neutral-50/50">
+                        <CardTitle className="text-base">
+                            Itens ({totalItems})
                         </CardTitle>
+
+                        {/* --- SWITCH DE AGRUPAMENTO --- */}
+                        <div className="flex items-center space-x-2">
+                            <Label htmlFor="group-mode" className="text-xs font-normal text-muted-foreground flex items-center gap-1 cursor-pointer">
+                                {isGrouped ? <Layers className="w-3 h-3" /> : <List className="w-3 h-3" />}
+                                {isGrouped ? 'Agrupado' : 'Lista Detalhada'}
+                            </Label>
+                            <Switch
+                                id="group-mode"
+                                checked={isGrouped}
+                                onCheckedChange={setIsGrouped}
+                            />
+                        </div>
                     </CardHeader>
-                    <CardContent className="p-0">
+
+                    <CardContent className="p-0 flex-1 overflow-auto">
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Produto</TableHead>
-                                    <TableHead>Preço</TableHead>
-                                    <TableHead className="text-center w-[150px]">Status</TableHead>
+                                    <TableHead>Variação</TableHead>
+                                    {isGrouped && <TableHead className="text-center">Qtd.</TableHead>}
+                                    <TableHead>Preço {isGrouped && 'Unit.'}</TableHead>
+                                    <TableHead className="text-center w-[180px]">Status</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {items.map((item, index) => (
-                                    <TableRow key={item.id} className={item.status === 'returned' ? "bg-neutral-50 opacity-70" : ""}>
-                                        <TableCell>
-                                            <div className="font-medium">{item.title}</div>
-                                            <div className="text-xs text-muted-foreground">
-                                                {item.size} - {item.color} <span className="font-mono ml-1">({item.barcode})</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            R$ {item.unit_price.toFixed(2)}
-                                        </TableCell>
-                                        <TableCell className="text-center">
-                                            <Button
-                                                size="sm"
-                                                variant={item.status === 'sold' ? 'default' : 'outline'}
-                                                className={`w-full ${item.status === 'sold' ? 'bg-green-600 hover:bg-green-700' : 'text-muted-foreground'}`}
-                                                onClick={() => toggleStatus(index)}
-                                            >
-                                                {item.status === 'sold' ? (
-                                                    <><CheckCircle2 className="w-4 h-4 mr-2" /> Vendido</>
-                                                ) : (
-                                                    <><XCircle className="w-4 h-4 mr-2" /> Devolvido</>
-                                                )}
-                                            </Button>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
+                                {/* --- MODO AGRUPADO --- */}
+                                {isGrouped ? (
+                                    groupedItems.map((group) => {
+                                        // Determina status do grupo
+                                        let groupStatus: 'sold' | 'returned' | 'mixed' = 'mixed'
+                                        if (group.soldCount === group.totalQuantity) groupStatus = 'sold'
+                                        if (group.returnedCount === group.totalQuantity) groupStatus = 'returned'
+
+                                        return (
+                                            <TableRow key={group.variant_id} className={groupStatus === 'returned' ? "bg-neutral-50 opacity-70" : ""}>
+                                                <TableCell className="font-medium">
+                                                    {group.title}
+                                                </TableCell>
+                                                <TableCell>
+                                                    {group.size} - {group.color}
+                                                </TableCell>
+                                                <TableCell className="text-center font-bold">
+                                                    {group.totalQuantity}x
+                                                </TableCell>
+                                                <TableCell>
+                                                    R$ {group.unit_price.toFixed(2)}
+                                                </TableCell>
+                                                <TableCell className="text-center">
+                                                    <Button
+                                                        size="sm"
+                                                        variant={groupStatus === 'sold' ? 'default' : (groupStatus === 'mixed' ? 'secondary' : 'outline')}
+                                                        className={`w-full ${groupStatus === 'sold' ? 'bg-green-600 hover:bg-green-700' :
+                                                                groupStatus === 'mixed' ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
+                                                                    'text-muted-foreground'
+                                                            }`}
+                                                        onClick={() => toggleStatusGroup(group.variant_id, groupStatus)}
+                                                    >
+                                                        {groupStatus === 'sold' && <><CheckCircle2 className="w-4 h-4 mr-2" /> Vendidos</>}
+                                                        {groupStatus === 'returned' && <><XCircle className="w-4 h-4 mr-2" /> Devolvidos</>}
+                                                        {groupStatus === 'mixed' && <span className="text-xs font-bold">{group.soldCount} Vend. / {group.returnedCount} Dev.</span>}
+                                                    </Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        )
+                                    })
+                                ) : (
+                                    /* --- MODO LISTA SIMPLES --- */
+                                    items.map((item) => (
+                                        <TableRow key={item.id} className={item.status === 'returned' ? "bg-neutral-50 opacity-70" : ""}>
+                                            <TableCell className="font-medium">
+                                                {item.title}
+                                                <span className="block text-xs text-muted-foreground font-mono">{item.barcode}</span>
+                                            </TableCell>
+                                            <TableCell>
+                                                {item.size} - {item.color}
+                                            </TableCell>
+                                            <TableCell>
+                                                R$ {item.unit_price.toFixed(2)}
+                                            </TableCell>
+                                            <TableCell className="text-center">
+                                                <Button
+                                                    size="sm"
+                                                    variant={item.status === 'sold' ? 'default' : 'outline'}
+                                                    className={`w-full ${item.status === 'sold' ? 'bg-green-600 hover:bg-green-700' : 'text-muted-foreground'}`}
+                                                    onClick={() => toggleStatusIndividual(item.id)}
+                                                >
+                                                    {item.status === 'sold' ? (
+                                                        <><CheckCircle2 className="w-4 h-4 mr-2" /> Vendido</>
+                                                    ) : (
+                                                        <><XCircle className="w-4 h-4 mr-2" /> Devolvido</>
+                                                    )}
+                                                </Button>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>
@@ -264,14 +378,38 @@ export default function CloseConsignmentPage() {
                                 </div>
                             </div>
 
-                            {/* --- BOTÃO VERDE CORRIGIDO --- */}
-                            <Button
-                                className="w-full h-12 text-lg font-bold bg-green-600 hover:bg-green-700 shadow-md text-white"
-                                onClick={handleFinish}
-                                disabled={saving}
-                            >
-                                {saving ? 'Processando...' : 'Finalizar Acerto'} <Save className="w-5 h-5 ml-2" />
-                            </Button>
+                            {/* --- SUBSTITUIÇÃO DO BOTÃO PELO ALERT DIALOG --- */}
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button
+                                        className="w-full h-12 text-lg font-bold bg-green-600 hover:bg-green-700 shadow-md text-white"
+                                        disabled={saving}
+                                    >
+                                        {saving ? 'Processando...' : 'Finalizar Acerto'} <Save className="w-5 h-5 ml-2" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                        <AlertDialogTitle>Confirmar fechamento?</AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                            Esta ação finalizará a sacola.
+                                            <br /><br />
+                                            <ul className="list-disc pl-4 text-sm text-neutral-600">
+                                                <li><strong>{soldItems.length} itens vendidos</strong> serão contabilizados.</li>
+                                                <li><strong>{returnedItems.length} itens devolvidos</strong> retornarão ao estoque agora.</li>
+                                            </ul>
+                                            <br />
+                                            Essa ação não pode ser desfeita.
+                                        </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleFinish} className="bg-green-600 hover:bg-green-700">
+                                            Confirmar e Fechar
+                                        </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
 
                         </CardContent>
                     </Card>

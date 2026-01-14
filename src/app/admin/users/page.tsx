@@ -1,22 +1,24 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { UserPlus, Trash2, Shield, Loader2, Pencil, Save } from 'lucide-react'
+import { UserPlus, Trash2, Shield, Loader2, Pencil, Save, ShieldAlert, User } from 'lucide-react'
 import { toast } from "sonner"
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/src/lib/supabase'
 
-// Importe a NOVA função updateSystemUser aqui
+// Suas actions de servidor (certifique-se que elas aceitam o campo 'role')
 import { createSystemUser, listSystemUsers, deleteSystemUser, updateSystemUser } from '../../actions/admin-auth'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch' // <--- 1. Importando Switch
+import { Badge } from '@/components/ui/badge'   // <--- 2. Importando Badge
 
 export default function UsersPage() {
     const router = useRouter()
@@ -25,25 +27,27 @@ export default function UsersPage() {
 
     // Controle do Modal
     const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingId, setEditingId] = useState<string | null>(null) // ID se estiver editando
+    const [editingId, setEditingId] = useState<string | null>(null)
 
     // Form States
     const [newName, setNewName] = useState('')
     const [newEmail, setNewEmail] = useState('')
     const [newPassword, setNewPassword] = useState('')
+    const [isAdmin, setIsAdmin] = useState(false) // <--- 3. Novo Estado para Admin
     const [saving, setSaving] = useState(false)
 
-    // Proteção de Rota (Só Admin)
+    // Proteção de Rota (Só Admin pode ver essa tela)
     useEffect(() => {
         async function checkPermission() {
             const { data: { user } } = await supabase.auth.getUser()
+            // Verifica se a role no metadata é 'admin'
             if (user?.user_metadata?.role !== 'admin') {
                 toast.error('Acesso negado.')
                 router.push('/')
             }
         }
         checkPermission()
-    }, [])
+    }, [router])
 
     // Carregar Usuários
     async function loadUsers() {
@@ -63,6 +67,7 @@ export default function UsersPage() {
         setNewName('')
         setNewEmail('')
         setNewPassword('')
+        setIsAdmin(false) // Padrão: Não é admin
         setIsDialogOpen(true)
     }
 
@@ -71,7 +76,9 @@ export default function UsersPage() {
         setEditingId(user.id)
         setNewName(user.user_metadata?.full_name || '')
         setNewEmail(user.email || '')
-        setNewPassword('') // Senha sempre vazia ao editar (só preenche se quiser trocar)
+        setNewPassword('')
+        // Verifica se o usuário já é admin olhando os metadados
+        setIsAdmin(user.user_metadata?.role === 'admin')
         setIsDialogOpen(true)
     }
 
@@ -79,27 +86,31 @@ export default function UsersPage() {
     const handleSave = async () => {
         if (!newEmail || !newName) return toast.error('Nome e Email são obrigatórios')
 
-        // Validação de senha na criação
         if (!editingId && (!newPassword || newPassword.length < 6)) {
             return toast.error('Senha deve ter 6+ caracteres na criação')
         }
 
         setSaving(true)
 
+        // Define a role baseado no switch
+        const roleToSave = isAdmin ? 'admin' : 'user'
+
         let result
         if (editingId) {
             // MODO EDIÇÃO
             result = await updateSystemUser(editingId, {
                 email: newEmail,
-                password: newPassword, // Pode ir vazio, o back trata
-                fullName: newName
+                password: newPassword,
+                fullName: newName,
+                role: roleToSave // <--- Enviando a role atualizada
             })
         } else {
             // MODO CRIAÇÃO
             result = await createSystemUser({
                 email: newEmail,
                 password: newPassword,
-                fullName: newName
+                fullName: newName,
+                role: roleToSave // <--- Enviando a role na criação
             })
         }
 
@@ -134,12 +145,11 @@ export default function UsersPage() {
                     <p className="text-muted-foreground">Gerencie quem pode acessar o sistema.</p>
                 </div>
 
-                {/* Botão Novo (Abre Modal Limpo) */}
                 <Button onClick={handleOpenCreate} className="bg-neutral-900">
                     <UserPlus className="w-4 h-4 mr-2" /> Novo Usuário
                 </Button>
 
-                {/* Modal de Cadastro/Edição */}
+                {/* MODAL DE CADASTRO/EDIÇÃO */}
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogContent>
                         <DialogHeader>
@@ -164,8 +174,23 @@ export default function UsersPage() {
                                     onChange={e => setNewPassword(e.target.value)}
                                     placeholder={editingId ? "Deixe em branco para não alterar" : "******"}
                                 />
-                                {editingId && <p className="text-[10px] text-muted-foreground">Preencha apenas se quiser trocar a senha do usuário.</p>}
+                                {editingId && <p className="text-[10px] text-muted-foreground">Preencha apenas se quiser trocar a senha.</p>}
                             </div>
+
+                            {/* --- SWITCH DE ADMIN --- */}
+                            <div className="flex items-center justify-between rounded-lg border p-4 bg-neutral-50">
+                                <div className="space-y-0.5">
+                                    <Label className="text-base font-semibold">Acesso Administrativo</Label>
+                                    <p className="text-sm text-muted-foreground">
+                                        Pode gerenciar outros usuários?
+                                    </p>
+                                </div>
+                                <Switch
+                                    checked={isAdmin}
+                                    onCheckedChange={setIsAdmin}
+                                />
+                            </div>
+
                             <Button onClick={handleSave} disabled={saving} className="w-full bg-green-600 hover:bg-green-700">
                                 {saving ? <Loader2 className="animate-spin" /> : <><Save className="w-4 h-4 mr-2" /> Salvar Dados</>}
                             </Button>
@@ -188,26 +213,39 @@ export default function UsersPage() {
                                 <TableRow>
                                     <TableHead>Usuário</TableHead>
                                     <TableHead>E-mail</TableHead>
+                                    <TableHead>Permissão</TableHead> {/* Nova Coluna */}
                                     <TableHead>Criado em</TableHead>
                                     <TableHead className="text-right">Ações</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {loading ? (
-                                    <TableRow><TableCell colSpan={4} className="text-center h-24">Carregando...</TableCell></TableRow>
+                                    <TableRow><TableCell colSpan={5} className="text-center h-24">Carregando...</TableCell></TableRow>
                                 ) : users.map((u) => (
                                     <TableRow key={u.id}>
                                         <TableCell className="font-medium">
                                             {u.user_metadata?.full_name || 'Sem nome'}
                                         </TableCell>
                                         <TableCell>{u.email}</TableCell>
+
+                                        {/* Coluna de Permissão Visual */}
+                                        <TableCell>
+                                            {u.user_metadata?.role === 'admin' ? (
+                                                <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200 border-0 flex w-fit gap-1 items-center">
+                                                    <ShieldAlert className="w-3 h-3" /> Admin
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-neutral-600 flex w-fit gap-1 items-center">
+                                                    <User className="w-3 h-3" /> Usuário
+                                                </Badge>
+                                            )}
+                                        </TableCell>
+
                                         <TableCell className="text-muted-foreground text-sm">
                                             {format(new Date(u.created_at), "dd/MM/yyyy HH:mm", { locale: ptBR })}
                                         </TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-1">
-
-                                                {/* Botão EDITAR */}
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
@@ -217,8 +255,6 @@ export default function UsersPage() {
                                                 >
                                                     <Pencil className="w-4 h-4" />
                                                 </Button>
-
-                                                {/* Botão EXCLUIR */}
                                                 <Button
                                                     variant="ghost"
                                                     size="icon"
